@@ -202,6 +202,24 @@ app.post('/ai-test', async (req, res) => {
   res.json({ reply: response.choices[0].message.content });
 });
 
+// Human transfer detect karo
+const transferKeywords = ['human', 'agent', 'real person', 'talk to someone', 'baat karwao', 'insaan', 'kisi se baat'];
+const wantsHuman = transferKeywords.some(keyword => message.toLowerCase().includes(keyword));
+
+if (wantsHuman) {
+  const leadData3 = await pool.query('SELECT * FROM leads WHERE id = $1', [lead_id]);
+  const lead3 = leadData3.rows[0];
+
+  sendEmail(
+    process.env.ADMIN_EMAIL,
+    `🚨 URGENT: Human Agent Requested — ${lead3?.name || 'Unknown'}`,
+    `Lead chahta hai human agent se baat karna!\nNaam: ${lead3?.name}\nPhone: ${lead3?.phone}\nMessage: "${message}"\n\nKripya turant call back karo!`
+  ).catch(err => console.log('Transfer email failed:', err.message));
+
+  await pool.query('UPDATE leads SET status = $1 WHERE id = $2', ['callback', lead_id]);
+}
+
+
 // Chat with Sentiment Analysis + Lead Scoring + Email
 app.post('/chat', async (req, res) => {
   const { lead_id, message } = req.body;
