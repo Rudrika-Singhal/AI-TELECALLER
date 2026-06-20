@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Add User — AI Telecaller</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; background: #f4f6f9; display: flex; justify-content: center; align-items: center; height: 100vh; }
+    .box { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 380px; }
+    .box h1 { text-align: center; color: #2c3e50; margin-bottom: 25px; font-size: 20px; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; font-size: 13px; color: #666; margin-bottom: 5px; }
+    input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
+    button { width: 100%; padding: 12px; background: #2c3e50; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 15px; margin-top: 10px; }
+    button:hover { background: #34495e; }
+    .msg { font-size: 13px; margin-top: 10px; text-align: center; }
+    .success { color: #28a745; }
+    .error { color: #dc3545; }
+    a { display: block; text-align: center; margin-top: 15px; font-size: 13px; color: #2c3e50; }
+  </style>
+</head>
+<body>
+
+<div class="box">
+  <h1>➕ Naya User Banao</h1>
+  <div class="form-group">
+    <label>Username</label>
+    <input type="text" id="username" placeholder="jaise: rudrika" />
+  </div>
+  <div class="form-group">
+    <label>Password</label>
+    <input type="password" id="password" placeholder="••••••••" />
+  </div>
+  <div class="form-group">
+    <label>Role</label>
+    <select id="role">
+      <option value="agent">Agent</option>
+      <option value="manager">Manager</option>
+      <option value="super_admin">Super Admin</option>
+    </select>
+  </div>
+  <button onclick="createUser()">User Banao</button>
+  <div class="msg" id="msg"></div>
+  <a href="/login.html">← Login page par jao</a>
+</div>
+
+<script>
+  async function createUser() {
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    const role = document.getElementById('role').value;
+
+    if (!username || !password) {
+      document.getElementById('msg').innerHTML = '<span class="error">Username aur password dono bharo!</span>';
+      return;
+    }
+
+    const res = await fetch('/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password, role })
+    });
+
+    const data = await res.json();
+
+    if (data.id) {
+      document.getElementById('msg').innerHTML = `<span class="success">✅ User "${data.username}" ban gaya! Ab login kar sakte ho.</span>`;
+      document.getElementById('username').value = '';
+      document.getElementById('password').value = '';
+    } else {
+      document.getElementById('msg').innerHTML = '<span class="error">❌ Error: User pehle se ho sakta hai.</span>';
+    }
+  }
+</script>
+
+</body>
+</html>
