@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AI Telecaller Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; background: #f4f6f9; }
+    .navbar { background: #2c3e50; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+    .navbar h1 { font-size: 20px; }
+    .navbar a { color: white; text-decoration: none; font-size: 14px; }
+    .navbar-right { display: flex; align-items: center; gap: 15px; }
+    .container { padding: 30px; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
+    .stat-card { background: white; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .stat-card h2 { font-size: 36px; color: #2c3e50; }
+    .stat-card p { color: #888; margin-top: 5px; }
+    .section { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .section h3 { margin-bottom: 15px; color: #2c3e50; }
+    .form-group { display: flex; gap: 10px; margin-bottom: 15px; }
+    input { padding: 10px; border: 1px solid #ddd; border-radius: 5px; flex: 1; }
+    button { padding: 10px 20px; background: #2c3e50; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    button:hover { background: #34495e; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #f8f9fa; color: #666; font-size: 13px; }
+    .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; }
+    .pending { background: #fff3cd; color: #856404; }
+    .interested { background: #d4edda; color: #155724; }
+    .callback { background: #cce5ff; color: #004085; }
+    .not_interested { background: #f8d7da; color: #721c24; }
+    .chat-box { height: 300px; overflow-y: auto; border: 1px solid #eee; border-radius: 5px; padding: 15px; margin-bottom: 10px; background: #f8f9fa; }
+    .chat-msg { margin-bottom: 15px; }
+    .chat-msg.user { text-align: right; }
+    .chat-msg.ai { text-align: left; }
+    .chat-bubble { display: inline-block; padding: 10px 15px; border-radius: 15px; max-width: 70%; font-size: 14px; }
+    .user .chat-bubble { background: #2c3e50; color: white; }
+    .ai .chat-bubble { background: white; border: 1px solid #ddd; color: #333; }
+    .chat-input { display: flex; gap: 10px; }
+    .chat-input input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+    .loading { color: #888; font-style: italic; font-size: 13px; }
+    .logout-btn { background: #e74c3c; border: none; color: white; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-size: 13px; }
+    .logout-btn:hover { background: #c0392b; }
+    .score-high { color: #28a745; font-weight: bold; }
+    .score-mid { color: #ffc107; font-weight: bold; }
+    .score-low { color: #dc3545; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<div class="navbar">
+  <h1>🤖 AI Telecaller Dashboard</h1>
+  <div class="navbar-right">
+    <a href="/logs.html">📋 Call Logs</a>
+    <a href="/campaigns.html">📢 Campaigns</a>
+    <a href="/analytics.html">📊 Analytics</a>
+    <a href="/voice.html">📞 Voice Call</a>
+    <button class="logout-btn" onclick="logout()">🚪 Logout</button>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="stats">
+    <div class="stat-card">
+      <h2 id="total-leads">0</h2>
+      <p>Total Leads</p>
+    </div>
+    <div class="stat-card">
+      <h2 id="total-calls">0</h2>
+      <p>Total Calls</p>
+    </div>
+    <div class="stat-card">
+      <h2 id="pending-leads">0</h2>
+      <p>Pending Leads</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>➕ Naya Lead Add Karo</h3>
+    <div class="form-group">
+      <input type="text" id="lead-name" placeholder="Naam likho" />
+      <input type="text" id="lead-phone" placeholder="Phone number" />
+      <button onclick="addLead()">Add Lead</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>📂 CSV se Bulk Leads Upload Karo</h3>
+    <p style="color:#888; font-size:13px; margin-bottom:10px;">CSV format: name, phone</p>
+    <div class="form-group">
+      <input type="file" id="csv-file" accept=".csv" style="padding:8px;" />
+      <button onclick="uploadCSV()">Upload CSV</button>
+    </div>
+    <div id="upload-result" style="margin-top:10px; font-size:14px;"></div>
+  </div>
+
+  <div class="section">
+    <h3>👥 Leads List</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Naam</th>
+          <th>Phone</th>
+          <th>Status</th>
+          <th>Score</th>
+          <th>Date</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="leads-table">
+        <tr><td colspan="7" style="text-align:center;color:#888">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h3>💬 AI Se Baat Karo</h3>
+    <p style="color:#888; font-size:13px; margin-bottom:10px;">Lead ID daalo aur AI se baat karo</p>
+    <div style="margin-bottom:10px;">
+      <input type="number" id="chat-lead-id" placeholder="Lead ID likho (jaise 1)" style="width:220px; padding:8px; border:1px solid #ddd; border-radius:5px;" />
+    </div>
+    <div class="chat-box" id="chat-box">
+      <div class="chat-msg ai">
+        <div class="chat-bubble">Namaste! Lead ID daalo aur baat shuru karo 😊</div>
+      </div>
+    </div>
+    <div class="chat-input">
+      <input type="text" id="chat-input" placeholder="Message likho..." onkeypress="if(event.key==='Enter') sendMessage()" />
+      <button onclick="sendMessage()">Send ➤</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const token = localStorage.getItem('token');
+  if (!token) window.location.href = '/login.html';
+
+  function logout() {
+    localStorage.removeItem('token');
+    window.location.href = '/login.html';
+  }
+
+  async function loadLeads() {
+    const res = await fetch('/leads');
+    const leads = await res.json();
+
+    document.getElementById('total-leads').textContent = leads.length;
+    document.getElementById('pending-leads').textContent = leads.filter(l => l.status === 'pending').length;
+
+    const tbody = document.getElementById('leads-table');
+    if (leads.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#888">Koi lead nahi hai</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = leads.map(lead => {
+      const score = lead.score || 5;
+      const scoreClass = score >= 7 ? 'score-high' : score >= 4 ? 'score-mid' : 'score-low';
+      return `
+        <tr>
+          <td>${lead.id}</td>
+          <td>${lead.name}</td>
+          <td>${lead.phone}</td>
+          <td><span class="badge ${lead.status}">${lead.status}</span></td>
+          <td class="${scoreClass}">${score}/10</td>
+          <td>${new Date(lead.created_at).toLocaleDateString('en-IN')}</td>
+          <td>
+            <button onclick="makeCall(${lead.id})" style="background:#9b59b6;color:white;padding:4px 8px;font-size:11px;border:none;border-radius:4px;cursor:pointer;margin-right:3px;">📞 Call Now</button>
+            <button onclick="updateStatus(${lead.id}, 'interested')" style="background:#28a745;color:white;padding:4px 8px;font-size:11px;border:none;border-radius:4px;cursor:pointer;margin-right:3px;">✅ Interested</button>
+            <button onclick="updateStatus(${lead.id}, 'callback')" style="background:#ffc107;color:#333;padding:4px 8px;font-size:11px;border:none;border-radius:4px;cursor:pointer;margin-right:3px;">📞 Callback</button>
+            <button onclick="updateStatus(${lead.id}, 'not_interested')" style="background:#dc3545;color:white;padding:4px 8px;font-size:11px;border:none;border-radius:4px;cursor:pointer;">❌ Not Interested</button>
+          </td>
+        </tr>`;
+    }).join('');
+  }
+
+  async function makeCall(leadId) {
+    if (!confirm('Real phone call karna chahte ho is lead ko?')) return;
+
+    const res = await fetch('/make-call', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lead_id: leadId })
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      alert('✅ Call trigger ho gayi! 1-2 minute mein lead ko call aayegi.');
+    } else {
+      alert('❌ Error: ' + JSON.stringify(data.error));
+    }
+  }
+
+  async function updateStatus(id, status) {
+    await fetch(`/leads/${id}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status })
+    });
+    loadLeads();
+  }
+
+  async function addLead() {
+    const name = document.getElementById('lead-name').value;
+    const phone = document.getElementById('lead-phone').value;
+    if (!name || !phone) { alert('Naam aur phone dono bharo!'); return; }
+    await fetch('/leads', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, phone })
+    });
+    document.getElementById('lead-name').value = '';
+    document.getElementById('lead-phone').value = '';
+    loadLeads();
+  }
+
+  async function uploadCSV() {
+    const fileInput = document.getElementById('csv-file');
+    const file = fileInput.files[0];
+    if (!file) { alert('Pehle CSV file select karo!'); return; }
+    const formData = new FormData();
+    formData.append('file', file);
+    document.getElementById('upload-result').innerHTML = '⏳ Upload ho raha hai...';
+    const res = await fetch('/leads/upload-csv', { method: 'POST', body: formData });
+    const data = await res.json();
+    document.getElementById('upload-result').innerHTML = `✅ ${data.message}`;
+    loadLeads();
+  }
+
+  async function loadStats() {
+    const res = await fetch('/call-logs');
+    const logs = await res.json();
+    document.getElementById('total-calls').textContent = logs.length;
+  }
+
+  async function sendMessage() {
+    const leadId = document.getElementById('chat-lead-id').value;
+    const message = document.getElementById('chat-input').value;
+    if (!leadId || !message) { alert('Lead ID aur message dono bharo!'); return; }
+    const chatBox = document.getElementById('chat-box');
+    chatBox.innerHTML += `<div class="chat-msg user"><div class="chat-bubble">${message}</div></div>`;
+    chatBox.innerHTML += `<div class="chat-msg ai" id="loading-msg"><div class="chat-bubble loading">AI soch raha hai... ⏳</div></div>`;
+    document.getElementById('chat-input').value = '';
+    chatBox.scrollTop = chatBox.scrollHeight;
+    const res = await fetch('/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lead_id: leadId, message })
+    });
+    const data = await res.json();
+    const loadingMsg = document.getElementById('loading-msg');
+    if (loadingMsg) loadingMsg.remove();
+    chatBox.innerHTML += `<div class="chat-msg ai"><div class="chat-bubble">${data.reply}</div></div>`;
+    if (data.sentiment) {
+      chatBox.innerHTML += `<div style="text-align:center;font-size:11px;color:#888;margin-bottom:10px;">Sentiment: ${data.sentiment} | Score: ${data.score}/10</div>`;
+    }
+    chatBox.scrollTop = chatBox.scrollHeight;
+    loadStats();
+    loadLeads();
+  }
+
+  loadLeads();
+  loadStats();
+  setInterval(() => {
+    loadLeads();
+    loadStats();
+  }, 5000);
+</script>
+
+</body>
+</html>

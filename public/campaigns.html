@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Campaigns</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; background: #f4f6f9; }
+    .navbar { background: #2c3e50; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+    .navbar h1 { font-size: 20px; }
+    .navbar a { color: white; text-decoration: none; font-size: 14px; }
+    .container { padding: 30px; }
+    .section { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .section h3 { margin-bottom: 15px; color: #2c3e50; }
+    input, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; margin-bottom: 10px; }
+    textarea { height: 100px; resize: vertical; }
+    button { padding: 10px 20px; background: #2c3e50; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    button:hover { background: #34495e; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; font-size: 13px; }
+    th { background: #f8f9fa; color: #666; }
+    .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; background: #d4edda; color: #155724; }
+    .prompt-text { max-width: 400px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #555; }
+  </style>
+</head>
+<body>
+
+<div class="navbar">
+  <h1>📢 Campaigns</h1>
+  <a href="/">← Dashboard</a>
+</div>
+
+<div class="container">
+
+  <!-- Campaign banao -->
+  <div class="section">
+    <h3>➕ Naya Campaign Banao</h3>
+    <input type="text" id="camp-name" placeholder="Campaign naam (jaise: IIT Coaching Campaign)" />
+    <textarea id="camp-prompt" placeholder="AI prompt likho — AI kya bolega campaign mein...
+
+Example: Tum IIT coaching center ke liye call kar rahe ho. Customer ko JEE preparation courses ke baare mein batao. Friendly raho."></textarea>
+    <button onclick="createCampaign()">Campaign Banao</button>
+    <div id="camp-result" style="margin-top:10px; font-size:14px;"></div>
+  </div>
+
+  <!-- Campaigns list -->
+  <div class="section">
+    <h3>📋 Saare Campaigns</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Naam</th>
+          <th>Prompt</th>
+          <th>Status</th>
+          <th>Date</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="campaigns-table">
+        <tr><td colspan="6" style="text-align:center;color:#888">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+  // Login check
+  const token = localStorage.getItem('token');
+  if (!token) window.location.href = '/login.html';
+
+  async function loadCampaigns() {
+    const res = await fetch('/campaigns');
+    const campaigns = await res.json();
+
+    const tbody = document.getElementById('campaigns-table');
+    if (campaigns.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888">Koi campaign nahi hai</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = campaigns.map(c => `
+      <tr>
+        <td>${c.id}</td>
+        <td>${c.name}</td>
+        <td class="prompt-text" title="${c.prompt}">${c.prompt}</td>
+        <td><span class="badge">${c.status}</span></td>
+        <td>${new Date(c.created_at).toLocaleDateString('en-IN')}</td>
+        <td>
+          <button onclick="deleteCampaign(${c.id})" style="background:#dc3545;padding:5px 10px;font-size:12px;">🗑️ Delete</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  async function createCampaign() {
+    const name = document.getElementById('camp-name').value;
+    const prompt = document.getElementById('camp-prompt').value;
+
+    if (!name || !prompt) {
+      alert('Naam aur prompt dono bharo!');
+      return;
+    }
+
+    const res = await fetch('/campaigns', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, prompt })
+    });
+
+    const data = await res.json();
+    document.getElementById('camp-result').innerHTML = `✅ Campaign "${data.name}" ban gayi!`;
+    document.getElementById('camp-name').value = '';
+    document.getElementById('camp-prompt').value = '';
+    loadCampaigns();
+  }
+
+  async function deleteCampaign(id) {
+    if (!confirm('Campaign delete karna chahte ho?')) return;
+    await fetch(`/campaigns/${id}`, { method: 'DELETE' });
+    loadCampaigns();
+  }
+
+  loadCampaigns();
+</script>
+
+</body>
+</html>

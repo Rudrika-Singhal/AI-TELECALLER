@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AI Voice Call</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); min-height: 100vh; display: flex; align-items: center; justify-content: center; color: white; }
+    .phone-ui { width: 400px; background: rgba(255,255,255,0.05); backdrop-filter: blur(20px); border-radius: 30px; padding: 30px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
+    .back-link { position: fixed; top: 20px; left: 20px; color: #aaa; text-decoration: none; font-size: 13px; background: rgba(255,255,255,0.1); padding: 8px 15px; border-radius: 20px; }
+    .top-bar { text-align: center; margin-bottom: 20px; }
+    .call-label { font-size: 11px; color: #aaa; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+    .lead-select { width: 100%; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 10px 15px; border-radius: 10px; font-size: 14px; }
+    .lead-select option { background: #302b63; color: white; }
+    .avatar-section { text-align: center; padding: 20px 0 10px; }
+    .avatar { width: 100px; height: 100px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; font-size: 45px; margin: 0 auto 15px; transition: all 0.3s; border: 3px solid transparent; }
+    .avatar.listening { border-color: #e74c3c; box-shadow: 0 0 0 12px rgba(231,76,60,0.2), 0 0 0 24px rgba(231,76,60,0.1); }
+    .avatar.speaking { border-color: #2ecc71; box-shadow: 0 0 0 12px rgba(46,204,113,0.2), 0 0 0 24px rgba(46,204,113,0.1); }
+    .caller-name { font-size: 22px; font-weight: 600; margin-bottom: 5px; }
+    .call-status { font-size: 13px; color: #aaa; min-height: 20px; margin-bottom: 4px; }
+    .call-timer { font-size: 14px; color: #2ecc71; font-weight: 500; min-height: 20px; }
+    .sentiment-row { display: flex; justify-content: center; margin: 10px 0; min-height: 30px; }
+    .badge { padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+    .badge.positive { background: rgba(46,204,113,0.2); color: #2ecc71; border: 1px solid #2ecc71; }
+    .badge.negative { background: rgba(231,76,60,0.2); color: #e74c3c; border: 1px solid #e74c3c; }
+    .badge.neutral { background: rgba(243,156,18,0.2); color: #f39c12; border: 1px solid #f39c12; }
+    .score-bar { margin: 8px 0 12px; display: none; }
+    .score-label { font-size: 12px; color: #aaa; margin-bottom: 5px; }
+    .score-track { background: rgba(255,255,255,0.1); border-radius: 10px; height: 6px; overflow: hidden; }
+    .score-fill { height: 100%; border-radius: 10px; background: linear-gradient(90deg, #e74c3c, #f39c12, #2ecc71); transition: width 0.5s; width: 50%; }
+    .transcript { background: rgba(0,0,0,0.3); border-radius: 15px; padding: 15px; height: 190px; overflow-y: auto; margin: 10px 0 20px; font-size: 13px; line-height: 1.7; }
+    .transcript::-webkit-scrollbar { width: 3px; }
+    .transcript::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+    .msg-user { color: #74b9ff; margin-bottom: 8px; }
+    .msg-ai { color: #a29bfe; margin-bottom: 8px; }
+    .msg-system { color: #636e72; font-size: 11px; margin-bottom: 5px; font-style: italic; }
+    .controls { display: flex; justify-content: center; align-items: center; gap: 25px; }
+    .ctrl-btn { width: 62px; height: 62px; border-radius: 50%; border: none; font-size: 24px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
+    .ctrl-btn:hover { transform: scale(1.1); }
+    .btn-call { background: linear-gradient(135deg, #00b09b, #96c93d); box-shadow: 0 5px 20px rgba(0,176,155,0.4); }
+    .btn-end { background: linear-gradient(135deg, #ff416c, #ff4b2b); box-shadow: 0 5px 20px rgba(255,65,108,0.4); }
+    .btn-mute { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2); color: white; }
+    .btn-mute.muted { background: rgba(231,76,60,0.3); border-color: #e74c3c; }
+    .voice-info { text-align: center; font-size: 11px; color: #555; margin-top: 15px; }
+  </style>
+</head>
+<body>
+
+<a href="/" class="back-link">← Dashboard</a>
+
+<div class="phone-ui">
+  <div class="top-bar">
+    <div class="call-label">🤖 AI Telecaller</div>
+    <select class="lead-select" id="lead-select" onchange="selectLead()">
+      <option value="">-- Lead Select Karo --</option>
+    </select>
+  </div>
+
+  <div class="avatar-section">
+    <div class="avatar" id="avatar">🤖</div>
+    <div class="caller-name" id="caller-name">—</div>
+    <div class="call-status" id="call-status">Lead select karo</div>
+    <div class="call-timer" id="call-timer"></div>
+  </div>
+
+  <div class="sentiment-row" id="sentiment-row"></div>
+
+  <div class="score-bar" id="score-bar">
+    <div class="score-label">Lead Score: <span id="score-text">5</span>/10</div>
+    <div class="score-track"><div class="score-fill" id="score-fill"></div></div>
+  </div>
+
+  <div class="transcript" id="transcript">
+    <div class="msg-system">Lead select karo aur call shuru karo...</div>
+  </div>
+
+  <div class="controls">
+    <button class="ctrl-btn btn-call" id="btn-start" onclick="startCall()" title="Call Shuru Karo">📞</button>
+    <button class="ctrl-btn btn-mute" id="btn-mute" onclick="toggleMute()" title="Mute" style="display:none">🎤</button>
+    <button class="ctrl-btn btn-end" id="btn-end" onclick="endCall()" title="Call Khatam Karo" style="display:none">📵</button>
+  </div>
+
+  <div class="voice-info" id="voice-info"></div>
+</div>
+
+<script>
+const token = localStorage.getItem('token');
+if (!token) window.location.href = '/login.html';
+
+let recognition = null;
+let isCallActive = false;
+let isMuted = false;
+let selectedLeadId = null;
+let timerInterval = null;
+let callSeconds = 0;
+let isSpeaking = false;
+let isProcessing = false;
+let selectedVoice = null;
+
+// Sabse pehle best voice load karo
+function loadBestVoice() {
+  const voices = window.speechSynthesis.getVoices();
+  if (voices.length === 0) return;
+
+  // Priority order — best se worst
+  const priority = [
+    v => v.name === 'Google हिन्दी',
+    v => v.name.includes('Google') && v.lang === 'hi-IN',
+    v => v.lang === 'hi-IN',
+    v => v.name.includes('Google') && v.lang === 'hi',
+    v => v.lang === 'hi',
+    v => v.name.includes('Google') && v.lang.startsWith('en-IN'),
+    v => v.lang === 'en-IN',
+    v => v.name.includes('Google') && v.lang.startsWith('en'),
+    v => v.lang.startsWith('en'),
+  ];
+
+  for (const check of priority) {
+    const found = voices.find(check);
+    if (found) {
+      selectedVoice = found;
+      document.getElementById('voice-info').textContent = `Voice: ${found.name}`;
+      break;
+    }
+  }
+}
+
+window.speechSynthesis.onvoiceschanged = loadBestVoice;
+setTimeout(loadBestVoice, 500);
+
+async function loadLeads() {
+  const res = await fetch('/leads');
+  const leads = await res.json();
+  const select = document.getElementById('lead-select');
+  leads.forEach(lead => {
+    const opt = document.createElement('option');
+    opt.value = lead.id;
+    opt.textContent = `${lead.name} (${lead.phone})`;
+    select.appendChild(opt);
+  });
+}
+
+function selectLead() {
+  const select = document.getElementById('lead-select');
+  selectedLeadId = select.value;
+  const name = select.options[select.selectedIndex].text;
+  if (selectedLeadId) {
+    document.getElementById('caller-name').textContent = name.split('(')[0].trim();
+    document.getElementById('call-status').textContent = '📞 Call shuru karne ke liye button dabao';
+  }
+}
+
+function interruptAI() {
+  if (isSpeaking) {
+    window.speechSynthesis.cancel();
+    isSpeaking = false;
+    isProcessing = false;
+    document.getElementById('avatar').classList.remove('speaking');
+    addMsg('system', '[ interrupted ]');
+  }
+}
+
+function speak(text) {
+  return new Promise((resolve) => {
+    if (!isCallActive) { resolve(); return; }
+
+    window.speechSynthesis.cancel();
+
+    // Clean text
+    const cleanText = text
+      .replace(/[*#_~`]/g, '')
+      .replace(/\n+/g, '. ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    // Long text ko chunks mein toddo
+    const maxLen = 200;
+    if (cleanText.length > maxLen) {
+      const chunks = [];
+      let remaining = cleanText;
+      while (remaining.length > 0) {
+        let chunk = remaining.substring(0, maxLen);
+        const lastPunct = Math.max(
+          chunk.lastIndexOf('.'),
+          chunk.lastIndexOf('!'),
+          chunk.lastIndexOf('?'),
+          chunk.lastIndexOf(',')
+        );
+        if (lastPunct > 100) chunk = chunk.substring(0, lastPunct + 1);
+        chunks.push(chunk.trim());
+        remaining = remaining.substring(chunk.length).trim();
+      }
+
+      let i = 0;
+      const speakChunk = () => {
+        if (!isCallActive || i >= chunks.length) { isSpeaking = false; document.getElementById('avatar').classList.remove('speaking'); resolve(); return; }
+        const u = new SpeechSynthesisUtterance(chunks[i]);
+        if (selectedVoice) u.voice = selectedVoice;
+        u.lang = selectedVoice ? selectedVoice.lang : 'hi-IN';
+        u.rate = 0.85;
+        u.pitch = 1.0;
+        u.volume = 1;
+        u.onend = () => { i++; speakChunk(); };
+        u.onerror = () => { i++; speakChunk(); };
+        window.speechSynthesis.speak(u);
+      };
+
+      isSpeaking = true;
+      document.getElementById('avatar').classList.add('speaking');
+      document.getElementById('call-status').textContent = '🔊 AI bol raha hai...';
+      speakChunk();
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    if (selectedVoice) utterance.voice = selectedVoice;
+    utterance.lang = selectedVoice ? selectedVoice.lang : 'hi-IN';
+    utterance.rate = 0.85;
+    utterance.pitch = 1.0;
+    utterance.volume = 1;
+
+    isSpeaking = true;
+    document.getElementById('avatar').classList.add('speaking');
+    document.getElementById('call-status').textContent = '🔊 AI bol raha hai...';
+
+    utterance.onend = () => {
+      isSpeaking = false;
+      document.getElementById('avatar').classList.remove('speaking');
+      resolve();
+    };
+
+    utterance.onerror = () => {
+      isSpeaking = false;
+      document.getElementById('avatar').classList.remove('speaking');
+      resolve();
+    };
+
+    window.speechSynthesis.speak(utterance);
+  });
+}
+
+function startListening() {
+  if (!isCallActive || isMuted || isProcessing) return;
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { addMsg('system', '❌ Chrome use karo'); return; }
+
+  recognition = new SR();
+  recognition.lang = 'hi-IN';
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+
+  recognition.onstart = () => {
+    document.getElementById('avatar').classList.add('listening');
+    document.getElementById('call-status').textContent = '🎤 Bol rahe ho...';
+  };
+
+  recognition.onspeechstart = () => {
+    if (isSpeaking) interruptAI();
+  };
+
+  recognition.onresult = async (event) => {
+    if (!isCallActive) return;
+    if (isSpeaking) interruptAI();
+
+    const result = event.results[event.results.length - 1];
+    if (result.isFinal) {
+      const transcript = result[0].transcript.trim();
+      if (!transcript) return;
+      document.getElementById('avatar').classList.remove('listening');
+      addMsg('user', `Aap: ${transcript}`);
+      await processMessage(transcript);
+    }
+  };
+
+  recognition.onerror = (e) => {
+    document.getElementById('avatar').classList.remove('listening');
+    if (e.error !== 'aborted' && isCallActive && !isMuted && !isProcessing) {
+      setTimeout(startListening, 800);
+    }
+  };
+
+  recognition.onend = () => {
+    document.getElementById('avatar').classList.remove('listening');
+    if (isCallActive && !isMuted && !isSpeaking && !isProcessing) {
+      setTimeout(startListening, 400);
+    }
+  };
+
+  try { recognition.start(); } catch(e) {}
+}
+
+async function processMessage(message) {
+  if (!isCallActive) return;
+  isProcessing = true;
+  document.getElementById('call-status').textContent = '💭 AI soch raha hai...';
+
+  try {
+    const res = await fetch('/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lead_id: selectedLeadId, message })
+    });
+
+    const data = await res.json();
+    if (!isCallActive) { isProcessing = false; return; }
+
+    addMsg('ai', `AI: ${data.reply}`);
+
+    if (data.sentiment) {
+      const sMap = { POSITIVE: ['positive','😊 Positive'], NEGATIVE: ['negative','😞 Negative'], NEUTRAL: ['neutral','😐 Neutral'] };
+      const [cls, label] = sMap[data.sentiment] || ['neutral', data.sentiment];
+      document.getElementById('sentiment-row').innerHTML = `<span class="badge ${cls}">${label}</span>`;
+    }
+
+    if (data.score) {
+      document.getElementById('score-bar').style.display = 'block';
+      document.getElementById('score-text').textContent = data.score;
+      document.getElementById('score-fill').style.width = (data.score * 10) + '%';
+    }
+
+    isProcessing = false;
+
+    if (isCallActive) {
+      await speak(data.reply);
+      if (isCallActive && !isMuted) startListening();
+    }
+
+  } catch(err) {
+    isProcessing = false;
+    if (isCallActive) setTimeout(startListening, 2000);
+  }
+}
+
+function addMsg(type, text) {
+  const box = document.getElementById('transcript');
+  const div = document.createElement('div');
+  div.className = `msg-${type}`;
+  div.textContent = text;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+function startTimer() {
+  callSeconds = 0;
+  timerInterval = setInterval(() => {
+    if (!isCallActive) { clearInterval(timerInterval); return; }
+    callSeconds++;
+    const m = String(Math.floor(callSeconds/60)).padStart(2,'0');
+    const s = String(callSeconds%60).padStart(2,'0');
+    document.getElementById('call-timer').textContent = `⏱ ${m}:${s}`;
+  }, 1000);
+}
+
+async function startCall() {
+  if (!selectedLeadId) { alert('Pehle lead select karo!'); return; }
+  isCallActive = true;
+  isSpeaking = false;
+  isProcessing = false;
+  document.getElementById('btn-start').style.display = 'none';
+  document.getElementById('btn-mute').style.display = 'flex';
+  document.getElementById('btn-end').style.display = 'flex';
+  document.getElementById('lead-select').disabled = true;
+  addMsg('system', '📞 Call connected...');
+  startTimer();
+  await processMessage('hello namaste');
+}
+
+function toggleMute() {
+  isMuted = !isMuted;
+  const btn = document.getElementById('btn-mute');
+  btn.textContent = isMuted ? '🔇' : '🎤';
+  btn.classList.toggle('muted', isMuted);
+  if (isMuted) {
+    interruptAI();
+    if (recognition) try { recognition.stop(); } catch(e) {}
+    document.getElementById('call-status').textContent = '🔇 Muted';
+  } else {
+    startListening();
+  }
+}
+
+function endCall() {
+  isCallActive = false;
+  isSpeaking = false;
+  isProcessing = false;
+  isMuted = false;
+
+  window.speechSynthesis.cancel();
+  if (recognition) { try { recognition.abort(); } catch(e) {} recognition = null; }
+  clearInterval(timerInterval);
+
+  document.getElementById('avatar').classList.remove('speaking', 'listening');
+  document.getElementById('btn-start').style.display = 'flex';
+  document.getElementById('btn-mute').style.display = 'none';
+  document.getElementById('btn-end').style.display = 'none';
+  document.getElementById('btn-mute').textContent = '🎤';
+  document.getElementById('btn-mute').classList.remove('muted');
+  document.getElementById('lead-select').disabled = false;
+  document.getElementById('call-status').textContent = '✅ Call khatam ho gayi';
+  document.getElementById('call-timer').textContent = '';
+  addMsg('system', `📵 Call ended`);
+}
+
+loadLeads();
+</script>
+</body>
+</html>

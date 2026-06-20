@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Analytics</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; background: #f4f6f9; }
+    .navbar { background: #2c3e50; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+    .navbar h1 { font-size: 20px; }
+    .navbar a { color: white; text-decoration: none; font-size: 14px; }
+    .container { padding: 30px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
+    .stat-card { background: white; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .stat-card h2 { font-size: 36px; font-weight: bold; }
+    .stat-card p { color: #888; margin-top: 5px; font-size: 14px; }
+    .section { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .section h3 { margin-bottom: 15px; color: #2c3e50; }
+    .bar-container { margin-bottom: 15px; }
+    .bar-label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px; color: #555; }
+    .bar-bg { background: #f0f0f0; border-radius: 10px; height: 20px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 10px; transition: width 0.5s; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; font-size: 13px; }
+    th { background: #f8f9fa; color: #666; }
+    .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; }
+    .interested { background: #d4edda; color: #155724; }
+    .pending { background: #fff3cd; color: #856404; }
+    .callback { background: #cce5ff; color: #004085; }
+    .not_interested { background: #f8d7da; color: #721c24; }
+  </style>
+</head>
+<body>
+
+<div class="navbar">
+  <h1>📊 Analytics</h1>
+  <a href="/">← Dashboard</a>
+</div>
+
+<div class="container">
+
+  <!-- Stats Cards -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <h2 id="total-leads" style="color:#2c3e50;">0</h2>
+      <p>Total Leads</p>
+    </div>
+    <div class="stat-card">
+      <h2 id="interested-count" style="color:#28a745;">0</h2>
+      <p>Interested</p>
+    </div>
+    <div class="stat-card">
+      <h2 id="callback-count" style="color:#ffc107;">0</h2>
+      <p>Callback</p>
+    </div>
+    <div class="stat-card">
+      <h2 id="not-interested-count" style="color:#dc3545;">0</h2>
+      <p>Not Interested</p>
+    </div>
+  </div>
+
+  <!-- Conversion Rate -->
+  <div class="section">
+    <h3>📈 Conversion Stats</h3>
+    <div class="bar-container">
+      <div class="bar-label">
+        <span>✅ Interested</span>
+        <span id="interested-pct">0%</span>
+      </div>
+      <div class="bar-bg">
+        <div class="bar-fill" id="interested-bar" style="background:#28a745; width:0%"></div>
+      </div>
+    </div>
+    <div class="bar-container">
+      <div class="bar-label">
+        <span>📞 Callback</span>
+        <span id="callback-pct">0%</span>
+      </div>
+      <div class="bar-bg">
+        <div class="bar-fill" id="callback-bar" style="background:#ffc107; width:0%"></div>
+      </div>
+    </div>
+    <div class="bar-container">
+      <div class="bar-label">
+        <span>❌ Not Interested</span>
+        <span id="not-interested-pct">0%</span>
+      </div>
+      <div class="bar-bg">
+        <div class="bar-fill" id="not-interested-bar" style="background:#dc3545; width:0%"></div>
+      </div>
+    </div>
+    <div class="bar-container">
+      <div class="bar-label">
+        <span>⏳ Pending</span>
+        <span id="pending-pct">0%</span>
+      </div>
+      <div class="bar-bg">
+        <div class="bar-fill" id="pending-bar" style="background:#ffc107; width:0%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leads Status Table -->
+  <div class="section">
+    <h3>👥 Leads Status Detail</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Naam</th>
+          <th>Phone</th>
+          <th>Status</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody id="leads-table">
+        <tr><td colspan="5" style="text-align:center;color:#888">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+<!-- Export Section -->
+<div class="section">
+  <h3>📥 Export Data</h3>
+  <div style="display:flex; gap:15px; margin-top:10px;">
+    <a href="/export/leads" style="padding:10px 20px; background:#2c3e50; color:white; border-radius:5px; text-decoration:none;">⬇️ Leads Export (CSV)</a>
+    <a href="/export/call-logs" style="padding:10px 20px; background:#2c3e50; color:white; border-radius:5px; text-decoration:none;">⬇️ Call Logs Export (CSV)</a>
+  </div>
+</div>
+</div>
+
+<script>
+  const token = localStorage.getItem('token');
+  if (!token) window.location.href = '/login.html';
+
+  async function loadAnalytics() {
+    const res = await fetch('/leads');
+    const leads = await res.json();
+    const total = leads.length;
+
+    const interested = leads.filter(l => l.status === 'interested').length;
+    const callback = leads.filter(l => l.status === 'callback').length;
+    const notInterested = leads.filter(l => l.status === 'not_interested').length;
+    const pending = leads.filter(l => l.status === 'pending').length;
+
+    document.getElementById('total-leads').textContent = total;
+    document.getElementById('interested-count').textContent = interested;
+    document.getElementById('callback-count').textContent = callback;
+    document.getElementById('not-interested-count').textContent = notInterested;
+
+    // Percentages
+    const pct = (n) => total > 0 ? Math.round((n / total) * 100) : 0;
+
+    document.getElementById('interested-pct').textContent = pct(interested) + '%';
+    document.getElementById('callback-pct').textContent = pct(callback) + '%';
+    document.getElementById('not-interested-pct').textContent = pct(notInterested) + '%';
+    document.getElementById('pending-pct').textContent = pct(pending) + '%';
+
+    document.getElementById('interested-bar').style.width = pct(interested) + '%';
+    document.getElementById('callback-bar').style.width = pct(callback) + '%';
+    document.getElementById('not-interested-bar').style.width = pct(notInterested) + '%';
+    document.getElementById('pending-bar').style.width = pct(pending) + '%';
+
+    // Table
+    const tbody = document.getElementById('leads-table');
+    tbody.innerHTML = leads.map(lead => `
+      <tr>
+        <td>${lead.id}</td>
+        <td>${lead.name}</td>
+        <td>${lead.phone}</td>
+        <td><span class="badge ${lead.status}">${lead.status}</span></td>
+        <td>${new Date(lead.created_at).toLocaleDateString('en-IN')}</td>
+      </tr>
+    `).join('');
+  }
+
+  loadAnalytics();
+</script>
+
+</body>
+</html>
