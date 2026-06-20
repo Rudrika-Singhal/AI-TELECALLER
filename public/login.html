@@ -14,6 +14,8 @@
     button { width: 100%; padding: 12px; background: #2c3e50; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 15px; margin-top: 10px; }
     button:hover { background: #34495e; }
     .error { color: #dc3545; font-size: 13px; margin-top: 10px; text-align: center; }
+    .signup-link { display: block; text-align: center; margin-top: 15px; font-size: 13px; color: #2c3e50; text-decoration: none; }
+    .signup-link:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
@@ -30,6 +32,7 @@
   </div>
   <button onclick="login()">Login</button>
   <div class="error" id="error-msg"></div>
+  <a href="/signup.html" class="signup-link">New here? Create an account →</a>
 </div>
 
 <script>
@@ -42,7 +45,7 @@
     const password = document.getElementById('password').value;
 
     if (!username || !password) {
-      document.getElementById('error-msg').textContent = 'Username aur password dono bharo!';
+      document.getElementById('error-msg').textContent = 'Please enter both username and password!';
       return;
     }
 
@@ -58,7 +61,7 @@
       localStorage.setItem('token', data.token);
       window.location.href = '/';
     } else {
-      document.getElementById('error-msg').textContent = 'Galat username ya password!';
+      document.getElementById('error-msg').textContent = 'Incorrect username or password!';
     }
   }
 </script>
