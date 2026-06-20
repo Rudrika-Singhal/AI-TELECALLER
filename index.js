@@ -439,9 +439,9 @@ app.post('/omnidim-webhook', async (req, res) => {
     console.log('Webhook received:', JSON.stringify(req.body));
 
     const data = req.body;
-    
-    // Phone number se lead dhundo
-    const phoneNumber = data.to_number || data.phone_number || '';
+    const report = data.call_report || {};
+
+    const phoneNumber = data.to_number || '';
     const cleanPhone = phoneNumber.replace('+91', '').replace(/\D/g, '');
 
     const leadResult = await pool.query(
@@ -455,30 +455,27 @@ app.post('/omnidim-webhook', async (req, res) => {
       return res.json({ success: false, message: 'Lead not found' });
     }
 
-    // Sentiment extract karo
-    const sentiment = (data.sentiment || data.sentiment_analysis || 'NEUTRAL').toUpperCase();
-    const summary = data.call_summary || data.summary || '';
-    const transcript = data.full_conversation || data.transcript || JSON.stringify(data);
+    const sentiment = (report.sentiment || 'NEUTRAL').toUpperCase();
+    const summary = report.summary || '';
+    const transcript = report.full_conversation || '';
 
-    // Status update karo
-    if (sentiment.includes('POSITIVE') || sentiment.includes('INTERESTED')) {
+    if (sentiment.includes('POSITIVE')) {
       await pool.query('UPDATE leads SET status = $1 WHERE id = $2', ['interested', lead.id]);
-    } else if (sentiment.includes('NEGATIVE') || sentiment.includes('NOT')) {
+    } else if (sentiment.includes('NEGATIVE')) {
       await pool.query('UPDATE leads SET status = $1 WHERE id = $2', ['not_interested', lead.id]);
     }
 
-    // Call log save karo
     await pool.query(
       'INSERT INTO call_logs (lead_id, transcript, sentiment) VALUES ($1, $2, $3)',
       [lead.id, transcript, sentiment]
     );
 
-    // Email bhejo
-    await sendEmail(
+    // Email — agar fail bhi ho jaye toh response bhejna mat rokna
+    sendEmail(
       process.env.ADMIN_EMAIL,
       `📞 Call Completed — ${lead.name}`,
       `Lead: ${lead.name}\nPhone: ${lead.phone}\nSentiment: ${sentiment}\nSummary: ${summary}`
-    );
+    ).catch(err => console.log('Email failed silently:', err.message));
 
     res.json({ success: true });
 
