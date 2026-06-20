@@ -121,22 +121,43 @@ async function sendEmail(to, subject, text) {
 }
 
 // Auth
-const ADMIN_USER = {
-  username: 'admin',
-  password: bcrypt.hashSync('admin123', 10)
-};
-
+// Login with database
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
-  if (username !== ADMIN_USER.username) {
-    return res.status(401).json({ error: 'Invalid credentials' });
+
+  // Default admin check (backward compatible)
+  if (username === 'admin' && password === 'admin123') {
+    const token = jwt.sign({ username, role: 'super_admin' }, process.env.JWT_SECRET, { expiresIn: '24h' });
+    return res.json({ token, role: 'super_admin' });
   }
-  const isValid = bcrypt.compareSync(password, ADMIN_USER.password);
-  if (!isValid) {
-    return res.status(401).json({ error: 'Invalid credentials' });
-  }
-  const token = jwt.sign({ username }, process.env.JWT_SECRET, { expiresIn: '24h' });
-  res.json({ token });
+
+  // Database users check
+  const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+  const user = result.rows[0];
+
+  if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+
+  const isValid = bcrypt.compareSync(password, user.password);
+  if (!isValid) return res.status(401).json({ error: 'Invalid credentials' });
+
+  const token = jwt.sign({ username, role: user.role }, process.env.JWT_SECRET, { expiresIn: '24h' });
+  res.json({ token, role: user.role });
+});
+
+// Create new user (sirf super admin kar sake)
+app.post('/users', async (req, res) => {
+  const { username, password, role } = req.body;
+  const hashedPassword = bcrypt.hashSync(password, 10);
+  const result = await pool.query(
+    'INSERT INTO users (username, password, role) VALUES ($1, $2, $3) RETURNING id, username, role',
+    [username, hashedPassword, role || 'agent']
+  );
+  res.json(result.rows[0]);
+});
+
+app.get('/users', async (req, res) => {
+  const result = await pool.query('SELECT id, username, role, created_at FROM users');
+  res.json(result.rows);
 });
 
 const verifyToken = (req, res, next) => {
