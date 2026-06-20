@@ -76,7 +76,7 @@ const csv = require('csv-parser');
 const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
 const app = express();
 app.use(express.json());
@@ -103,24 +103,18 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const conversations = {};
 
-// Email setup
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
+// Email setup — Resend
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 async function sendEmail(to, subject, text) {
   try {
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to,
-      subject,
-      text
+    await resend.emails.send({
+      from: 'AI Telecaller <onboarding@resend.dev>',
+      to: to,
+      subject: subject,
+      text: text
     });
-    console.log('Email sent successfully!');
+    console.log('Email sent successfully via Resend!');
   } catch (err) {
     console.log('Email error:', err.message);
   }
@@ -281,10 +275,9 @@ Reply with ONLY a number between 1-10. Nothing else.`
   if (sentiment === 'POSITIVE') {
     await pool.query('UPDATE leads SET status = $1 WHERE id = $2', ['interested', lead_id]);
 
-    // Email notification
     const leadData = await pool.query('SELECT * FROM leads WHERE id = $1', [lead_id]);
     const lead = leadData.rows[0];
-    await sendEmail(
+    sendEmail(
       process.env.ADMIN_EMAIL,
       `🎉 New Interested Lead — ${lead.name}`,
       `Lead Details:
@@ -293,15 +286,14 @@ Phone: ${lead.phone}
 Score: ${score}/10
 Customer ka message: "${message}"
 Time: ${new Date().toLocaleString('en-IN')}`
-    );
+    ).catch(err => console.log('Email failed silently:', err.message));
 
   } else if (sentiment === 'NEGATIVE') {
     await pool.query('UPDATE leads SET status = $1 WHERE id = $2', ['not_interested', lead_id]);
 
-    // Email notification for not interested
     const leadData2 = await pool.query('SELECT * FROM leads WHERE id = $1', [lead_id]);
     const lead2 = leadData2.rows[0];
-    await sendEmail(
+    sendEmail(
       process.env.ADMIN_EMAIL,
       `❌ Lead Not Interested — ${lead2.name}`,
       `Lead Details:
@@ -310,10 +302,9 @@ Phone: ${lead2.phone}
 Score: ${score}/10
 Customer ka message: "${message}"
 Time: ${new Date().toLocaleString('en-IN')}`
-    );
+    ).catch(err => console.log('Email failed silently:', err.message));
   }
 
-  // Save to call_logs with sentiment
   await pool.query(
     'INSERT INTO call_logs (lead_id, transcript, sentiment) VALUES ($1, $2, $3)',
     [lead_id, `Customer: ${message}\nAI: ${reply}`, sentiment]
@@ -458,6 +449,7 @@ app.post('/omnidim-webhook', async (req, res) => {
     const sentiment = (report.sentiment || 'NEUTRAL').toUpperCase();
     const summary = report.summary || '';
     const transcript = report.full_conversation || '';
+    const recordingUrl = data.recording_url || report.recording_url || '';
 
     if (sentiment.includes('POSITIVE')) {
       await pool.query('UPDATE leads SET status = $1 WHERE id = $2', ['interested', lead.id]);
@@ -466,15 +458,14 @@ app.post('/omnidim-webhook', async (req, res) => {
     }
 
     await pool.query(
-      'INSERT INTO call_logs (lead_id, transcript, sentiment) VALUES ($1, $2, $3)',
-      [lead.id, transcript, sentiment]
+      'INSERT INTO call_logs (lead_id, transcript, sentiment, recording_url) VALUES ($1, $2, $3, $4)',
+      [lead.id, transcript, sentiment, recordingUrl]
     );
 
-    // Email — agar fail bhi ho jaye toh response bhejna mat rokna
     sendEmail(
       process.env.ADMIN_EMAIL,
       `📞 Call Completed — ${lead.name}`,
-      `Lead: ${lead.name}\nPhone: ${lead.phone}\nSentiment: ${sentiment}\nSummary: ${summary}`
+      `Lead: ${lead.name}\nPhone: ${lead.phone}\nSentiment: ${sentiment}\nSummary: ${summary}\nRecording: ${recordingUrl}`
     ).catch(err => console.log('Email failed silently:', err.message));
 
     res.json({ success: true });
@@ -484,7 +475,6 @@ app.post('/omnidim-webhook', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
 
 app.listen(process.env.PORT, () => {
   console.log(`Server start ho gaya — port ${process.env.PORT} par`);
