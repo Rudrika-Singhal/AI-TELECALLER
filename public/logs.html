@@ -35,6 +35,7 @@
           <th>Lead ID</th>
           <th>Conversation</th>
           <th>Date & Time</th>
+          <th>Recording</th>
         </tr>
       </thead>
       <tbody id="logs-table">
@@ -62,6 +63,7 @@
         <td>${log.lead_id}</td>
         <td class="transcript">${log.transcript || '-'}</td>
         <td>${new Date(log.created_at).toLocaleString('en-IN')}</td>
+        <td>${log.recording_url ? `<a href="${log.recording_url}" target="_blank">🎵 Listen</a>` : '-'}</td>
       </tr>
     `).join('');
   }
