@@ -423,6 +423,12 @@ app.post('/make-call', async (req, res) => {
 
   try {
     const leadResult = await pool.query('SELECT * FROM leads WHERE id = $1', [lead_id]);
+    // DND Compliance check
+    console.log(`DND Compliance: Calling consent assumed for lead_id ${lead_id} as per TRAI guidelines. Calling between 9 AM - 9 PM only recommended.`);
+    const currentHour = new Date().getHours();
+    if (currentHour < 9 || currentHour > 21) {
+      return res.status(400).json({ error: 'DND Compliance: Calls allowed only between 9 AM - 9 PM as per TRAI guidelines.' });
+    }
     const lead = leadResult.rows[0];
 
     if (!lead) return res.status(404).json({ error: 'Lead nahi mili' });
