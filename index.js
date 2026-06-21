@@ -515,6 +515,22 @@ app.post('/omnidim-webhook', async (req, res) => {
   }
 });
 
+
+// Companies
+app.post('/companies', async (req, res) => {
+  const { name, storage_url } = req.body;
+  const result = await pool.query(
+    'INSERT INTO companies (name, storage_url) VALUES ($1, $2) RETURNING *',
+    [name, storage_url]
+  );
+  res.json(result.rows[0]);
+});
+
+app.get('/companies', async (req, res) => {
+  const result = await pool.query('SELECT * FROM companies');
+  res.json(result.rows);
+});
+
 app.listen(process.env.PORT, () => {
   console.log(`Server start ho gaya — port ${process.env.PORT} par`);
 });
